@@ -1,0 +1,295 @@
+     Docker 
+==================
+Docker is a platform for packing , distributing , and running applications inside lightweight, portable units called containers.
+
+Container
+===================
+code,
+python, libraries,dependencies, environment variables, os-level settings
+
+A container is a lightweight isolated box that runs your app with :
+
+its own file system,its own dependencies,its own process,
+but shares the host OS Kernal
+
+    Virtual Machines
+=============================
+
+Virtual environment
+Architecture====== computer-> os in the os HyperVisor  -> allows connect virtual machine os
+virtual machine is a full computer inside your computer.it includes : full Os (Linux/windows)
+Kernal,RAm,CPU,Drivers , Application.
+Expensive process
+
+Backbone
+=====================
+image and   
+container isolated running instance of an application or docker images
+
+env:
+
+layers:
+Docker images :
+can create by two different ways
+1)Docker file an a base image = pre build images
+
+python application
+
+1 pull python base image layer 1
+2 copy local code 2
+3 install packages 3
+4 run the application 4
+
+
+
+====================================================
+
+Installation
+===================================
+pre req
+Virtualization enabled = task manager ->performance -> cpu ->virtualization = enabled
+enabling the windows features -:
+wsl ,virtual machine platform = search bar - > turn windows features on or off
+restart
+
+=
+install docker desktop , create docker account
+configure WSl
+verify wsl2backend engine install wsl - wsl -- install then status - wsl --list -v
+Docker - settings -> resources -> confirm
+
+install Linux distribution
+wsl --install -d Ubuntu
+Create Unix user name and password
+final verification (Docker and Ubuntu v2 visible)
+
+===================================
+
+
+Docker file
+
+============================================
+base image 
+create working directory
+WORKDIR/app === create an app folder for the image
+copy all the code inside the folder
+copy ./app .==current working directory
+
+ # copy files to app folder
+#  . current working directory = 1_first_app
+ COPY . /app  
+#  or copy app.py/app 
+copy Dockerfile/app
+run
+CMD["python","app.py"] only run when the container initiated
+
+cd to dir where the docker file stored
+docker build -t image_name . - build the image
+
+eg : docker build -t first_app . (. location (inside the current working directory))
+docker build first app:0.1 . with version or tag
+ docker run --name first_app_container first_app(first app container - container name,first
+_app - docker image)
+
+docker run --name first_app_container first_python_app:0.0(if we added the tag also include that)
+
+doker run -it --name first_app_container first_app:0.0 /bin/sh will give an interactive shell
+
+docker ps -a - list non running container
+docker stop container id or name
+docker rm containeid -removing the container id
+
+
+docker compose up -d
+
+
+=============================================================
+Second Project
+
+copy . . second . = destination of current working directory use instead copy . /app
+
+issue1
+====================================================
+Hmmm… can't reach this page
+127.0.0.1 refused to connect
+
+port mapping _ to solve
+local machine has port 5000 , when running container ,also has its port 5000
+port mapping : 5000:5000
+docker run -p 5000:5000 flask container flask app(local 5000:container 5000)
+===============================================
+
+====================================================
+
+issue 2 
+====================================================
+Hmmm… can't reach this page
+172.17.0.2 took too long to respond
+Try:
+
+Search the web for 172 17 0 2
+Checking the connection
+Checking the proxy and the firewall
+ERR_CONNECTION_TIMED_OUT
+====================================================
+
+Networking
+===========================================================================================
+Whenever we create a Docker container ,docker automatically assigns it to a network called
+the 'bridge' network.Now, let's say you have multiple containers running, each container is 
+isolated from each other by default.
+
+which means that they cannot communicate with each other because they are on different 
+network.
+
+docker stop flask_container1
+docker rm flask_container1
+
+Multiple application
+ 
+a flask application in container A , network a 
+
+a etl pipe line with MySQL container b, network b
+these two applications can't talk to each other , because each of  them are in different
+containers.
+
+working with multiple containers , two containers should be in same network
+
+Create a common network for this
+==========================================================
+main folder 3_docker_network
+inside 
+flask and MySQL folder with dockerfile
+
+build MySQL folder image 
+
+docker build -t mysql_image MySQL/ (not dot because
+its not in the current working directory) in the main folder 3_docker_network
+
+Create a network == docker network create myflask
+
+delete network == docker network rm networkname
+
+docker run -dp 3307:3306 --name mysql_container mysql_image           -d = detached mode
+
+docker run -dp  3307:3306 --name mysql_container --network myflask mysql_imge
+
+3:3:23 issue , container stops running automatically
+
+flask image 
+docker build -t flask_image flask/
+
+docker run -db 5000:5000 --name flask_app_container --network myflask flask_image
+
+
+
+==========================================================================
+
+                           Docker Compose
+=========================================================================
+
+managing multiple containers with multiple docker file is very difficult,
+Managing multiple containers together as a single unit by using Docker Compose.
+eg docker-compose.yml
+version: '3.1'
+
+services: # each services are containers
+  mysql_container:
+    image: mysql:8.0 # the image of MySQL want to pull.
+    container_name: mysql_container
+    restart: always # 
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: demopassword
+      MYSQL_DATABASE: demodb
+    ports:
+      - "3307:3306"
+    healthcheck: # make sure will goto the next service only after the helthcheck
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./MySQL/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  flask_container: # service number 2 
+    build: Flask/. # build the image in the flask folder   
+    container_name: flask_container
+    restart: always
+    depends_on:
+      mysql_container:
+        condition: service_healthy
+    ports:
+      - "5000:5000" 
+
+then run the command : docker compose up -d(docker-compose up -d) this command can be used
+as first time building an image or turn on container , cannot use for rebuilding an image.
+docker compose down
+
+
+docker compose up -d --build  = rebuild an image
+
+=========================================================================
+
+
+                     Docker volume:
+if some application generate some logs or data or image, to store these kind of information
+we use docker volume (ie docker storage)
+
+Docker storage
+============ 
+bind mount and volumes (named volumes)
+
+Bind mount
+==================
+mount local storage to container
+we can store this local data in container , this process is called mounting.
+
+Volume :
+=========================
+use case :
+============== 
+a person who running a database sql container,it has some default location for 
+folder(all the tables etc.) eg : var/lib/mysql
+whenever we destroy the container ,the data also deletd.so . then the next day the person 
+runs the container , there is no data will be available because he deleted the container 
+for that in the next run the container will be the new one and there is no previous data.
+
+for avoiding this : attach a volume is also residing to the local
+and managed by docker , but we can specify the location
+like this var/lib/mysql
+
+
+
+:=====================================================
+
+               Push image to docker hub
+=======================================================
+
+Create an account in docker hub
+
+go to the folder where the image stored
+
+docker login
+
+docker push dockeruser/image_name:tag
+
+
+{% snapshot customers_snapshot %}
+
+{{
+  config(
+    target_schema='snapshots',
+    unique_key='customer_id',
+    strategy='timestamp',
+    updated_at='updated_at'
+  )
+}}
+
+
+
+
+
+
+ 
+
